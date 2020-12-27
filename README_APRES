@@ -1,0 +1,46 @@
+APRES Project
+
+LAWS Module:
+The laws module contains the WGT, LLT tables and the priority queue. Its wrapper is called from the shader module and also the SAP module interacts with it to get the bit vector of a warp
+Some of the important function of LAWS and their description
+
+1.update_priority_execute()
+	This function is a call to the LAWS module when a certain warp executing a load instruction reaches the execute stage. There are two scenarios :-
+		a. Cache HIT :- In this case all the associated entries in the bit vector are move to the head of the priority queue and a is_Bundle bit is set associated with them so that a proritized warp stays at head until issued
+		b. Cache Miss :- All the warp in the group of that particular warp are moved to the tail of the priority queue.
+2.update_priority_issue()
+	This function follows the round robin policy already present and moves the issued warp to the tail of the priority queue.
+3.set_llpc()
+	Function to store the PC of a load for a corresponding warp ID
+4.get_llpc()
+	function to return the PC of a warp in the last load table
+5.form_group()
+	This function forms and returns the group_ID to the WGT table. The requesting warp flushes its entry throughout the last load table and all the matches are stored into a 64 bit unsigned bit vector.
+6.wrapper_shader()
+	This function is just a top level wrapper to the laws module from the shader core
+7.get_group_ID()
+	This function just returns the bit vector associated with an entry in the warp group table
+
+SAP Module:-
+SAP module is a stride based prefetcher for the APRES system. Some of the main function of SAP and their description
+
+1.search_pc()
+	This function searches the PC of demand request in PT. If found it returns the struct of type ptable_entry 
+2.update_prefetch_table()
+	If pc of demand request is found in the PT, the corresponding row of PT is updates Else a new row is pushed into PT 
+3.calculate_stride() 
+	This function calculates a stride based on the address present in the demand request and the address present in PT
+4.compare_stride()
+	This function is used for comparing stride just calculated in calculate_stride() function and stride present in PT
+5.generate_prefetch_request()
+	This function is used to generate prefetch request  based on the address present in demand request, stride calculated , Wid in warp queue and wid in demand request
+
+
+Changes in the file shader.cc 
+1. IN the function process_memory_access_queue, we check for Cache hit/miss for the loads and correspondingly update the priority queue according to the load groupings done at issue stage.
+2. In the scheduler_unit::cycle() function, after the  ordering of warps is done and the vector m_next_cycle_prioritized_warps is populated, we 
+    integrate our priority queue in the m_next_cycle_prioritized_warps vector. Hence the scheduling algorithm of LAWS is finally consumed here and the warps 
+    are prioritised according to LAWS algorithm. 
+
+Changes in file abstract_hardware_model.have
+1. In the class warp_inst_t, we added a new member(Line 1012) to store the corresponding group ID & a function(Line 980) to return the group ID corresponding to a warp. ()
